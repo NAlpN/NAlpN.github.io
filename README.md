@@ -5,25 +5,26 @@
   <title>TEDx QR Okuyucu</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
-    body {
+    body, html {
       margin: 0;
-      font-family: 'Arial', sans-serif;
+      padding: 0;
       background-color: #000;
       color: #fff;
+      font-family: 'Arial', sans-serif;
       text-align: center;
+      overflow: hidden;
     }
 
     .container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
+      padding: 20px 0;
     }
 
-    h1 {
-      margin-bottom: 20px;
-      font-size: 24px;
-      color: #ff2c2c;
+    .logo {
+      width: 200px;
+      margin-bottom: 10px;
     }
 
     .qr-wrapper {
@@ -53,8 +54,7 @@
 <body>
 
   <div class="container">
-    <h1>TEDx Atatürk Üniversitesi</h1>
-
+    <img src="logo.png" alt="TEDx Logo" class="logo">
     <div class="qr-wrapper">
       <div id="reader"></div>
       <div class="qr-box-overlay"></div>
@@ -63,17 +63,65 @@
 
   <script>
     function onScanSuccess(decodedText, decodedResult) {
-      console.log(`QR Kod bulundu: ${decodedText}`);
-      alert(`QR Kod: ${decodedText}`);
+      let data;
+      try {
+        data = JSON.parse(decodedText);
+      } catch (e) {
+        alert("Geçersiz QR içeriği!");
+        return;
+      }
+
+      const win = window.open("", "_blank");
+      win.document.write(`
+        <!DOCTYPE html>
+        <html lang="tr">
+        <head>
+          <meta charset="UTF-8">
+          <title>Katılımcı Bilgileri</title>
+          <style>
+            body {
+              background-color: #f5f5f5;
+              font-family: 'Segoe UI', sans-serif;
+              padding: 40px;
+              color: #333;
+            }
+            .container {
+              background: #fff;
+              padding: 30px;
+              border-radius: 10px;
+              max-width: 400px;
+              margin: auto;
+              box-shadow: 0 0 10px rgba(0,0,0,0.1);
+              text-align: left;
+            }
+            h2 {
+              color: #d7263d;
+              margin-bottom: 20px;
+              text-align: center;
+            }
+            .info {
+              margin: 10px 0;
+            }
+            .label {
+              font-weight: bold;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Katılımcı Bilgileri</h2>
+            <div class="info"><span class="label">Ad Soyad:</span> ${data["ad soyad"] || "—"}</div>
+            <div class="info"><span class="label">E-posta:</span> ${data.email || "—"}</div>
+          </div>
+        </body>
+        </html>
+      `);
     }
 
     const html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start(
-      { facingMode: "environment" }, // Arka kamera
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-      },
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
       onScanSuccess
     );
   </script>
