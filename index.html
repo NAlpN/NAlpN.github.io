@@ -1,44 +1,38 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>TEDx QR Okuyucu</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body, html {
-      margin: 0;
-      padding: 0;
+      margin: 0; padding: 0;
       background-color: #000;
       color: #fff;
-      font-family: 'Arial', sans-serif;
+      font-family: Arial, sans-serif;
       text-align: center;
       overflow: hidden;
     }
-
     .container {
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 20px 0;
     }
-
     .logo {
-      width: 200px; /* Logo boyutunu buradan ayarlayabilirsin */
+      width: 200px;
       margin-bottom: 10px;
     }
-
     .qr-wrapper {
       position: relative;
       width: 300px;
       height: 300px;
     }
-
     #reader {
       width: 100%;
       height: 100%;
       border: 2px solid #fff;
     }
-
     .qr-box-overlay {
       position: absolute;
       top: 25%;
@@ -49,13 +43,40 @@
       box-sizing: border-box;
       pointer-events: none;
     }
+
+    /* Mesaj kutusu stili */
+    #message-box {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      padding: 15px 30px;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      display: none; /* Başlangıçta gizli */
+      z-index: 9999;
+      box-shadow: 0 0 15px rgba(0,0,0,0.7);
+      white-space: pre-line; /* Satır sonlarını korur */
+      max-width: 90%;
+      text-align: center;
+      user-select: none;
+    }
+    #message-box.success {
+      background-color: #28a745; /* yeşil */
+      box-shadow: 0 0 15px #28a745cc;
+    }
+    #message-box.warning {
+      background-color: #dc3545; /* kırmızı */
+      box-shadow: 0 0 15px #dc3545cc;
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <!-- LOGO GÖRSELİ -->
-    <img src="logo.png" alt="TEDx Logo" class="logo">
+    <img src="logo.png" alt="TEDx Logo" class="logo" />
 
     <div class="qr-wrapper">
       <div id="reader"></div>
@@ -63,19 +84,56 @@
     </div>
   </div>
 
+  <!-- Mesaj kutusu -->
+  <div id="message-box"></div>
+
   <script>
+    const scannedEmails = new Set();
+    const messageBox = document.getElementById('message-box');
+
+    function showMessage(message, type) {
+      messageBox.textContent = message;
+      messageBox.className = '';
+      if(type === 'success') {
+        messageBox.classList.add('success');
+      } else if(type === 'warning') {
+        messageBox.classList.add('warning');
+      }
+      messageBox.style.display = 'block';
+
+      // 5 saniye sonra mesajı gizle
+      setTimeout(() => {
+        messageBox.style.display = 'none';
+      }, 5000);
+    }
+
     function onScanSuccess(decodedText, decodedResult) {
-      console.log(`QR Kod bulundu: ${decodedText}`);
-      alert(`QR Kod: ${decodedText}`);
+      const parts = decodedText.split('-').map(s => s.trim());
+
+      if(parts.length === 2) {
+        const adSoyad = parts[0];
+        const mail = parts[1];
+
+        if(scannedEmails.has(mail)) {
+          showMessage(`Uyarı! "${mail}" mail adresi zaten kayıtlı.`, 'warning');
+          console.log(`Tekrarlanan mail: ${mail}`);
+          return;
+        }
+
+        scannedEmails.add(mail);
+        const entry = `TEDx Atatürk Üniversitesi'ne Hoş Geldiniz!\n${adSoyad}\n${mail}`;
+        showMessage(entry, 'success');
+        console.log(`Yeni kayıt:\n${entry}`);
+      } else {
+        showMessage("QR içeriği beklenen formatta değil.", 'warning');
+        console.log("Hatalı format:", decodedText);
+      }
     }
 
     const html5QrCode = new Html5Qrcode("reader");
     html5QrCode.start(
-      { facingMode: "environment" }, // Arka kamera
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-      },
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 250, height: 250 } },
       onScanSuccess
     );
   </script>
