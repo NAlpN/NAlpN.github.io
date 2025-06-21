@@ -43,8 +43,6 @@
       box-sizing: border-box;
       pointer-events: none;
     }
-
-    /* Mesaj kutusu stili */
     #message-box {
       position: fixed;
       top: 20px;
@@ -55,20 +53,20 @@
       border-radius: 8px;
       font-size: 18px;
       font-weight: bold;
-      display: none; /* Başlangıçta gizli */
+      display: none;
       z-index: 9999;
       box-shadow: 0 0 15px rgba(0,0,0,0.7);
-      white-space: pre-line; /* Satır sonlarını korur */
+      white-space: pre-line;
       max-width: 90%;
       text-align: center;
       user-select: none;
     }
     #message-box.success {
-      background-color: #28a745; /* yeşil */
+      background-color: #28a745;
       box-shadow: 0 0 15px #28a745cc;
     }
     #message-box.warning {
-      background-color: #dc3545; /* kırmızı */
+      background-color: #dc3545;
       box-shadow: 0 0 15px #dc3545cc;
     }
   </style>
@@ -77,65 +75,82 @@
 
   <div class="container">
     <img src="logo.png" alt="TEDx Logo" class="logo" />
-
     <div class="qr-wrapper">
       <div id="reader"></div>
       <div class="qr-box-overlay"></div>
     </div>
   </div>
 
-  <!-- Mesaj kutusu -->
   <div id="message-box"></div>
 
   <script>
-    const scannedEmails = new Set();
+    let scannedEmails = new Set(JSON.parse(localStorage.getItem('scannedEmails')) || []);
     const messageBox = document.getElementById('message-box');
+    const reader = new Html5Qrcode("reader");
 
-    function showMessage(message, type) {
+    let isProcessing = false;
+
+    function showMessage(message, type, callback) {
       messageBox.textContent = message;
       messageBox.className = '';
-      if(type === 'success') {
-        messageBox.classList.add('success');
-      } else if(type === 'warning') {
-        messageBox.classList.add('warning');
-      }
+      messageBox.classList.add(type === 'success' ? 'success' : 'warning');
       messageBox.style.display = 'block';
 
-      // 5 saniye sonra mesajı gizle
       setTimeout(() => {
         messageBox.style.display = 'none';
-      }, 5000);
+        if (typeof callback === "function") callback();
+      }, 4000);
     }
 
-    function onScanSuccess(decodedText, decodedResult) {
+    async function startScanner() {
+      await reader.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess
+      );
+    }
+
+    async function onScanSuccess(decodedText, decodedResult) {
+      if (isProcessing) return;
+      isProcessing = true;
+
+      await reader.stop(); // Tarayıcıyı durdur
+
       const parts = decodedText.split('-').map(s => s.trim());
 
-      if(parts.length === 2) {
+      if (parts.length === 2) {
         const adSoyad = parts[0];
         const mail = parts[1];
 
-        if(scannedEmails.has(mail)) {
-          showMessage(`Uyarı! "${mail}" mail adresi zaten kayıtlı.`, 'warning');
+        if (scannedEmails.has(mail)) {
+          showMessage(`Uyarı! "${mail}" mail adresi zaten kayıtlı.`, 'warning', () => {
+            startScanner(); // Mesajdan sonra tekrar başlat
+            isProcessing = false;
+          });
           console.log(`Tekrarlanan mail: ${mail}`);
           return;
         }
 
         scannedEmails.add(mail);
+        localStorage.setItem('scannedEmails', JSON.stringify(Array.from(scannedEmails)));
+
         const entry = `TEDx Atatürk Üniversitesi'ne Hoş Geldiniz!\n${adSoyad}\n${mail}`;
-        showMessage(entry, 'success');
+        showMessage(entry, 'success', () => {
+          startScanner();
+          isProcessing = false;
+        });
         console.log(`Yeni kayıt:\n${entry}`);
       } else {
-        showMessage("QR içeriği beklenen formatta değil.", 'warning');
+        showMessage("QR içeriği beklenen formatta değil.", 'warning', () => {
+          startScanner();
+          isProcessing = false;
+        });
         console.log("Hatalı format:", decodedText);
       }
     }
 
-    const html5QrCode = new Html5Qrcode("reader");
-    html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: { width: 250, height: 250 } },
-      onScanSuccess
-    );
+    // İlk başlatma
+    startScanner();
   </script>
 
 </body>
